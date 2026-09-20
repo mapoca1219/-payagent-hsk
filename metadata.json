@@ -1,0 +1,6 @@
+{
+  "name": "PayAgent HSK",
+  "description": "AI-Driven Autonomous Micro-Payments & Escrow for Local Commerce on HSK Testnet leveraging Account Abstraction and Privacy-Preserving Credentials.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

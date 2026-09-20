@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Production Build
+dist/
+build/
+out/
+
+# Caches and Temp
+cache/
+artifacts/
+.kilo/
+coverage/
+.DS_Store
+*.log
+
+# Sensitive Credentials & Keys (NEVER PUSH SECRETS)
+.env*
+!.env.example
