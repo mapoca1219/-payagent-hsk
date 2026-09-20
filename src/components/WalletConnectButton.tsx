@@ -52,7 +52,12 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onAddr
 
       const handleChainChanged = (hexChainId: string) => {
         setChainId(parseInt(hexChainId, 16));
-        if (account) fetchBalance(account);
+        ethereum
+          .request({ method: "eth_accounts" })
+          .then((accs: string[]) => {
+            if (accs && accs.length > 0) fetchBalance(accs[0]);
+          })
+          .catch(() => {});
       };
 
       ethereum.on("accountsChanged", handleAccountsChanged);
@@ -65,7 +70,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onAddr
         }
       };
     }
-  }, [account]);
+  }, []);
 
   const fetchBalance = async (address: string) => {
     try {
@@ -213,3 +218,4 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onAddr
     </div>
   );
 };
+

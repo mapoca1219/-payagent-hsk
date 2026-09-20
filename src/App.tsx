@@ -28,6 +28,7 @@ import type { OrderRecord } from "./types.ts";
 import { payAgent } from "../agent/agent.ts";
 import { generateMockCredential } from "../agent/privacyVerifier.ts";
 import { DEFAULT_ESCROW_CONTRACT_ADDRESS } from "../agent/hskChain.ts";
+import { soundEffects } from "./utils/audioNotification.ts";
 
 const INITIAL_ORDERS: OrderRecord[] = [
   {
@@ -240,6 +241,7 @@ export default function App() {
           )
         );
         appendLog(`🎉 DvP Settlement complete! Funds released to merchant vault: ${targetOrder.merchantAddress}`);
+        soundEffects.playDvpSettled();
       } else {
         appendLog(`❌ Verification failed: ${result.errorMessage}`);
       }
@@ -268,6 +270,7 @@ export default function App() {
       )
     );
 
+    soundEffects.playRefundProcessed();
     appendLog(`✅ Order ${orderId} refunded on HSK Testnet.`);
     setIsProcessing(false);
   };

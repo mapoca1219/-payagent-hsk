@@ -1,0 +1,48 @@
+1
+00:00:01,000 --> 00:00:15,000
+Welcome to PayAgent HSK. Today's autonomous AI agents cannot pay machine-to-machine, lack compliance for institutions, and cannot guarantee real-world physical delivery.
+
+2
+00:00:16,000 --> 00:00:30,000
+PayAgent HSK solves this on HashKey Chain Testnet, combining x402 machine payments, local ZK privacy, real Web3 wallet integration, and physical robotics DvP.
+
+3
+00:00:31,000 --> 00:00:45,000
+Let's connect our Web3 wallet. In the top header, we click 'Connect Wallet' to connect MetaMask to HashKey Chain Testnet (Chain ID 133).
+
+4
+00:00:46,000 --> 00:01:15,000
+Our wallet displays our live HSK token balance and provides a direct link to our address on the official HashKey Blockscout Explorer.
+
+5
+00:01:16,000 --> 00:01:45,000
+Now, let's explore the x402 Machine Payment Protocol playground. When an AI agent requests a protected API resource, the server replies with HTTP 402 Payment Required.
+
+6
+00:01:46,000 --> 00:02:15,000
+The agent signs and settles the micropayment directly on HashKey Chain, receiving an instant HTTP 200 response with zero human intervention.
+
+7
+00:02:16,000 --> 00:02:45,000
+In Customer View, the user uses natural language to order Colombian Gesha specialty coffee, tokenized as an on-chain Real-World Asset (RWA).
+
+8
+00:02:46,000 --> 00:03:15,000
+The agent generates a local zero-knowledge privacy credential. Clicking 'Pagar con MetaMask' triggers an on-chain contract call to MerchantEscrow.sol.
+
+9
+00:03:16,000 --> 00:03:45,000
+We confirm the transaction in MetaMask, locking the funds in escrow and generating a verified transaction on HashKey Chain.
+
+10
+00:03:46,000 --> 00:04:15,000
+In the Physical AI Fleet tab, autonomous rovers and IoT beacons with RISC-V enclaves transmit real-time telemetry to confirm delivery.
+
+11
+00:04:16,000 --> 00:04:45,000
+Funds are only released via Delivery-vs-Payment once physical GPS and cryptographic hardware hashes match the delivery destination in Cali.
+
+12
+00:04:46,000 --> 00:05:00,000
+With institutional KYB, commercial ZK privacy, and multi-track coverage, PayAgent HSK powers the next generation of autonomous commerce on HashKey Chain. Thank you!
+

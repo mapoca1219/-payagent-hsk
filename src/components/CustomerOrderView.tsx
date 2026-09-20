@@ -6,6 +6,7 @@ import { payAgent } from "../../agent/agent.ts";
 import { parseEther, createWalletClient, custom, keccak256, stringToBytes } from "viem";
 import { hskTestnet, DEFAULT_ESCROW_CONTRACT_ADDRESS, HSK_EXPLORER_URL } from "../../agent/hskChain.ts";
 import { MERCHANT_ESCROW_ABI } from "../../agent/contractsAbi.ts";
+import { soundEffects } from "../utils/audioNotification.ts";
 
 interface CustomerOrderViewProps {
   merchants: Merchant[];
@@ -195,6 +196,7 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
           notes: promptText || `Ordered ${selectedItems.length} items`,
         };
 
+        soundEffects.playOrderEscrowed();
         onOrderCreated(orderRecord);
         setPromptText("");
         setSelectedItems([]);
@@ -234,6 +236,7 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
       notes: promptText || `Ordered ${selectedItems.length} items`,
     };
 
+    soundEffects.playOrderEscrowed();
     onOrderCreated(orderRecord);
     setPromptText("");
     setSelectedItems([]);

@@ -24,6 +24,7 @@ import {
   type X402ResourceResponse,
 } from "../../agent/x402Protocol.ts";
 import { HSK_EXPLORER_URL } from "../../agent/hskChain.ts";
+import { soundEffects } from "../utils/audioNotification.ts";
 
 export const X402ProtocolPlayground: React.FC = () => {
   const [endpoints] = useState<MachinePayableEndpoint[]>(SAMPLE_MACHINE_ENDPOINTS);
@@ -55,8 +56,14 @@ export const X402ProtocolPlayground: React.FC = () => {
     if (signWithWallet && typeof window !== "undefined" && (window as any).ethereum) {
       try {
         const ethereum = (window as any).ethereum;
-        const accounts = await ethereum.request({ method: "eth_accounts" });
-        const signer = (accounts && accounts.length > 0 ? accounts[0] : challenge.recipientVault) as `0x${string}`;
+        let accounts = await ethereum.request({ method: "eth_accounts" });
+        if (!accounts || accounts.length === 0) {
+          accounts = await ethereum.request({ method: "eth_requestAccounts" });
+        }
+        if (!accounts || accounts.length === 0) {
+          throw new Error("No authorized wallet account available.");
+        }
+        const signer = accounts[0] as `0x${string}`;
         const challengeMessage = `HTTP 402 Payment Authorization\nResource: ${challenge.resourceName}\nAmount: ${challenge.priceHSK} ${challenge.tokenSymbol}\nNonce: ${challenge.headers["x402-challenge-nonce"]}`;
 
         const signature = await ethereum.request({
@@ -98,6 +105,7 @@ export const X402ProtocolPlayground: React.FC = () => {
     const delivered = verifyAndDeliverX402Resource(selectedEndpoint, proof);
     setDeliveredResponse(delivered);
     setCurrentStep("DELIVERED_200");
+    soundEffects.playX402Success();
     setIsExecuting(false);
   };
 
