@@ -3,6 +3,9 @@ import { Send, Sparkles, Shield, Lock, CheckCircle2, AlertCircle, Pizza, Coffee,
 import type { Merchant, MenuItem, OrderRecord } from "../types.ts";
 import { generateMockCredential, type UserCredential } from "../../agent/privacyVerifier.ts";
 import { payAgent } from "../../agent/agent.ts";
+import { parseEther, createWalletClient, custom, keccak256, stringToBytes } from "viem";
+import { hskTestnet, DEFAULT_ESCROW_CONTRACT_ADDRESS, HSK_EXPLORER_URL } from "../../agent/hskChain.ts";
+import { MERCHANT_ESCROW_ABI } from "../../agent/contractsAbi.ts";
 
 interface CustomerOrderViewProps {
   merchants: Merchant[];
@@ -22,6 +25,8 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
   const [selectedItems, setSelectedItems] = useState<{ item: MenuItem; quantity: number }[]>([]);
   const [credentialType, setCredentialType] = useState<UserCredential["credentialType"]>("LOCAL_LOYALTY_VIP");
   const [agentFeedback, setAgentFeedback] = useState<string | null>(null);
+  const [useWalletTx, setUseWalletTx] = useState(true);
+  const [isWalletSubmitting, setIsWalletSubmitting] = useState(false);
 
   const selectedMerchant = merchants.find((m) => m.id === selectedMerchantId) || merchants[0];
 
@@ -126,6 +131,83 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
     // Identify if any item is linked to an RWA inventory batch
     const firstRwaItem = selectedItems.find((si) => si.item.rwaBatchId !== undefined);
     const rwaAssetId = firstRwaItem?.item.rwaBatchId;
+
+    // Real on-chain transaction via connected Web3 wallet (MetaMask / Rabby)
+    if (connectedAddress && useWalletTx && typeof window !== "undefined" && (window as any).ethereum) {
+      try {
+        setIsWalletSubmitting(true);
+        setAgentFeedback("🦊 Abriendo MetaMask para confirmar la transacción en HashKey Chain Testnet...");
+
+        const walletClient = createWalletClient({
+          chain: hskTestnet,
+          transport: custom((window as any).ethereum),
+        });
+
+        const rawOrderHash = `0x${Math.random().toString(16).substring(2, 66).padStart(64, "0")}` as `0x${string}`;
+        const commitment = (userCredential.subjectCommitment.startsWith("0x")
+          ? userCredential.subjectCommitment
+          : keccak256(stringToBytes(userCredential.subjectCommitment))) as `0x${string}`;
+        const amountWei = parseEther(totalHSK.toString());
+
+        const txHash = await (walletClient as any).writeContract({
+          address: DEFAULT_ESCROW_CONTRACT_ADDRESS as `0x${string}`,
+          abi: MERCHANT_ESCROW_ABI,
+          functionName: "createOrder",
+          args: [
+            rawOrderHash,
+            selectedMerchant.address as `0x${string}`,
+            amountWei,
+            commitment,
+            JSON.stringify({ merchant: selectedMerchant.id, items: selectedItems.map((i) => i.item.name) }),
+          ],
+          value: amountWei,
+          account: connectedAddress as `0x${string}`,
+          chain: hskTestnet,
+        });
+
+        setAgentFeedback(`🎉 ¡Transacción confirmada en tu wallet! Tx Hash: ${txHash.slice(0, 12)}...`);
+
+        const orderRecord: OrderRecord = {
+          id: orderUniqueId,
+          orderHash: rawOrderHash,
+          merchantId: selectedMerchant.id,
+          merchantName: selectedMerchant.name,
+          merchantAddress: selectedMerchant.address,
+          customerAddress: connectedAddress as `0x${string}`,
+          items: selectedItems.map((si) => ({
+            name: si.item.name,
+            quantity: si.quantity,
+            unitPriceHSK: si.item.priceHSK,
+          })),
+          totalHSK: Number(totalHSK.toFixed(4)),
+          status: "ESCROWED",
+          credential: userCredential,
+          rwaAssetId,
+          txHash: txHash as `0x${string}`,
+          createdAt: Date.now(),
+          logs: [
+            `[${new Date().toLocaleTimeString()}] Orden iniciada en HashKey Chain Testnet`,
+            `[🦊 MetaMask] Transacción enviada y firmada desde tu wallet (${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)})`,
+            `[⛓️ Tx Hash] ${txHash}`,
+            `[MerchantEscrow.sol] Fondos bloqueados en custodia (${totalHSK.toFixed(4)} HSK)`,
+            ...(rwaAssetId ? [`[RWA Link] Lote físico #${rwaAssetId} reservado`] : []),
+          ],
+          notes: promptText || `Ordered ${selectedItems.length} items`,
+        };
+
+        onOrderCreated(orderRecord);
+        setPromptText("");
+        setSelectedItems([]);
+        setIsWalletSubmitting(false);
+        return;
+      } catch (err: any) {
+        console.warn("Wallet transaction error:", err);
+        const errMsg = err?.shortMessage || err?.message || "Transacción cancelada";
+        setAgentFeedback(`⚠️ MetaMask: ${errMsg}. Ejecutando vía AI Session Key...`);
+      } finally {
+        setIsWalletSubmitting(false);
+      }
+    }
 
     const orderRecord: OrderRecord = {
       id: orderUniqueId,
@@ -445,8 +527,30 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
             <div className="pt-2 border-t border-slate-800/80 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Network Fee (HSK L2):</span>
-                <span className="text-emerald-400 font-mono">Sponsored by Paymaster (0.00 HSK)</span>
+                <span className="text-emerald-400 font-mono">
+                  {connectedAddress && useWalletTx ? "Gas estándar L2 (HSK)" : "Sponsored by Paymaster (0.00 HSK)"}
+                </span>
               </div>
+
+              {connectedAddress && (
+                <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-800/40 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="use-wallet-tx"
+                      checked={useWalletTx}
+                      onChange={(e) => setUseWalletTx(e.target.checked)}
+                      className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-400 cursor-pointer"
+                    />
+                    <label htmlFor="use-wallet-tx" className="cursor-pointer text-slate-200 text-xs font-medium">
+                      Firmar transacción con mi Wallet (MetaMask)
+                    </label>
+                  </div>
+                  <span className="text-[10px] text-cyan-300 font-mono bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/40">
+                    HSK Testnet (133)
+                  </span>
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-sm">
                 <span className="font-semibold text-slate-200">Escrow Total:</span>
@@ -460,10 +564,15 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
             <button
               id="confirm-autonomous-order-btn"
               onClick={handleExecuteAutonomousOrder}
-              disabled={isProcessing || selectedItems.length === 0}
+              disabled={isProcessing || isWalletSubmitting || selectedItems.length === 0}
               className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:via-teal-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
             >
-              {isProcessing ? (
+              {isWalletSubmitting ? (
+                <>
+                  <span className="inline-block animate-spin">🦊</span>
+                  <span>Confirmando en MetaMask / Wallet...</span>
+                </>
+              ) : isProcessing ? (
                 <>
                   <span className="inline-block animate-spin">⏳</span>
                   <span>AI Agent Executing on HSK...</span>
@@ -471,7 +580,11 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Lock in Escrow & Authorize AI Agent</span>
+                  <span>
+                    {connectedAddress && useWalletTx
+                      ? "Pagar con MetaMask en HSK Testnet"
+                      : "Lock in Escrow & Authorize AI Agent"}
+                  </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
