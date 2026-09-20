@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Wallet, ExternalLink, RefreshCw, Check, AlertTriangle, ArrowRight } from "lucide-react";
+import { Wallet, ExternalLink, RefreshCw, AlertTriangle } from "lucide-react";
 import { HSK_CHAIN_ID, HSK_RPC_ENDPOINT, HSK_EXPLORER_URL } from "../../agent/hskChain.ts";
 
 interface WalletConnectButtonProps {
@@ -34,7 +34,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onAddr
       ethereum
         .request({ method: "eth_chainId" })
         .then((hexChainId: string) => {
-          setChainId(parseInt(hexChainId, 16));
+          setChainId(Number.parseInt(hexChainId, 16));
         })
         .catch(console.error);
 
@@ -51,7 +51,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onAddr
       };
 
       const handleChainChanged = (hexChainId: string) => {
-        setChainId(parseInt(hexChainId, 16));
+        setChainId(Number.parseInt(hexChainId, 16));
         ethereum
           .request({ method: "eth_accounts" })
           .then((accs: string[]) => {
@@ -105,7 +105,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onAddr
         await fetchBalance(accounts[0]);
 
         const currentChainId = await ethereum.request({ method: "eth_chainId" });
-        setChainId(parseInt(currentChainId, 16));
+        setChainId(Number.parseInt(currentChainId, 16));
       }
     } catch (err: any) {
       console.error("User denied or error connecting:", err);
@@ -193,7 +193,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onAddr
       ) : (
         <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          HSK Testnet
+          <span>HSK Testnet</span>
         </span>
       )}
 

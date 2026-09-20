@@ -1,17 +1,9 @@
 import React, { useState } from "react";
 import {
   Coins,
-  ArrowRight,
-  CheckCircle2,
-  AlertCircle,
-  Zap,
   Terminal,
   RefreshCw,
-  Cpu,
-  Layers,
-  Send,
   Code,
-  ExternalLink,
 } from "lucide-react";
 import {
   SAMPLE_MACHINE_ENDPOINTS,
@@ -23,7 +15,6 @@ import {
   type X402PaymentProof,
   type X402ResourceResponse,
 } from "../../agent/x402Protocol.ts";
-import { HSK_EXPLORER_URL } from "../../agent/hskChain.ts";
 import { soundEffects } from "../utils/audioNotification.ts";
 
 export const X402ProtocolPlayground: React.FC = () => {
@@ -185,13 +176,14 @@ export const X402ProtocolPlayground: React.FC = () => {
             {endpoints.map((ep) => {
               const active = ep.id === selectedEndpoint.id;
               return (
-                <div
+                <button
+                  type="button"
                   key={ep.id}
                   onClick={() => {
                     setSelectedEndpoint(ep);
                     handleReset();
                   }}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                  className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
                     active
                       ? "bg-slate-900 border-cyan-500 shadow-sm ring-1 ring-cyan-500/40"
                       : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80"
@@ -209,7 +201,7 @@ export const X402ProtocolPlayground: React.FC = () => {
                   <p className="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">
                     {ep.description}
                   </p>
-                </div>
+                </button>
               );
             })}
           </div>

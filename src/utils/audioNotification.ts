@@ -13,7 +13,7 @@ class SoundEffects {
         this.ctx = new AudioCtx();
       }
     }
-    if (this.ctx && this.ctx.state === "suspended") {
+    if (this.ctx?.state === "suspended") {
       this.ctx.resume().catch(() => {});
     }
   }

@@ -1,12 +1,17 @@
 import React, { useState } from "react";
-import { Send, Sparkles, Shield, Lock, CheckCircle2, AlertCircle, Pizza, Coffee, ArrowRight, Wallet, Info, Coins } from "lucide-react";
+import { Send, Sparkles, Shield, Lock, CheckCircle2, ArrowRight, Wallet, Info, Coins } from "lucide-react";
 import type { Merchant, MenuItem, OrderRecord } from "../types.ts";
 import { generateMockCredential, type UserCredential } from "../../agent/privacyVerifier.ts";
-import { payAgent } from "../../agent/agent.ts";
 import { parseEther, createWalletClient, custom, keccak256, stringToBytes } from "viem";
-import { hskTestnet, DEFAULT_ESCROW_CONTRACT_ADDRESS, HSK_EXPLORER_URL } from "../../agent/hskChain.ts";
+import { hskTestnet, DEFAULT_ESCROW_CONTRACT_ADDRESS } from "../../agent/hskChain.ts";
 import { MERCHANT_ESCROW_ABI } from "../../agent/contractsAbi.ts";
 import { soundEffects } from "../utils/audioNotification.ts";
+
+const generateSecureRandomHex = (byteCount: number = 32): `0x${string}` => {
+  const bytes = new Uint8Array(byteCount);
+  crypto.getRandomValues(bytes);
+  return `0x${Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+};
 
 interface CustomerOrderViewProps {
   merchants: Merchant[];
@@ -97,8 +102,8 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
 
   const addItemToCart = (item: MenuItem) => {
     setSelectedItems((prev) => {
-      const existing = prev.find((i) => i.item.id === item.id);
-      if (existing) {
+      const exists = prev.some((i) => i.item.id === item.id);
+      if (exists) {
         return prev.map((i) => (i.item.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
       }
       return [...prev, { item, quantity: 1 }];
@@ -127,7 +132,11 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
     };
 
     const userCredential = generateMockCredential(credentialType, tierMap[credentialType]);
-    const orderUniqueId = "order_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+    const randomSuffix = Array.from(crypto.getRandomValues(new Uint8Array(3)))
+      .map((b) => b.toString(36))
+      .join("")
+      .substring(0, 4);
+    const orderUniqueId = `order_${Date.now()}_${randomSuffix}`;
 
     // Identify if any item is linked to an RWA inventory batch
     const firstRwaItem = selectedItems.find((si) => si.item.rwaBatchId !== undefined);
@@ -144,7 +153,7 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
           transport: custom((window as any).ethereum),
         });
 
-        const rawOrderHash = `0x${Math.random().toString(16).substring(2, 66).padStart(64, "0")}` as `0x${string}`;
+        const rawOrderHash = generateSecureRandomHex(32);
         const commitment = (userCredential.subjectCommitment.startsWith("0x")
           ? userCredential.subjectCommitment
           : keccak256(stringToBytes(userCredential.subjectCommitment))) as `0x${string}`;
@@ -213,7 +222,7 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
 
     const orderRecord: OrderRecord = {
       id: orderUniqueId,
-      orderHash: `0x${Math.random().toString(16).substring(2, 66).padStart(64, "0")}`,
+      orderHash: generateSecureRandomHex(32),
       merchantId: selectedMerchant.id,
       merchantName: selectedMerchant.name,
       merchantAddress: selectedMerchant.address,
@@ -240,6 +249,37 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
     onOrderCreated(orderRecord);
     setPromptText("");
     setSelectedItems([]);
+  };
+
+  const renderSubmitButtonContent = () => {
+    if (isWalletSubmitting) {
+      return (
+        <>
+          <span className="inline-block animate-spin">🦊</span>
+          <span>Confirmando en MetaMask / Wallet...</span>
+        </>
+      );
+    }
+    if (isProcessing) {
+      return (
+        <>
+          <span className="inline-block animate-spin">⏳</span>
+          <span>AI Agent Executing on HSK...</span>
+        </>
+      );
+    }
+    const buttonLabel =
+      connectedAddress && useWalletTx
+        ? "Pagar con MetaMask en HSK Testnet"
+        : "Lock in Escrow & Authorize AI Agent";
+
+    return (
+      <>
+        <CheckCircle2 className="w-4 h-4" />
+        <span>{buttonLabel}</span>
+        <ArrowRight className="w-4 h-4" />
+      </>
+    );
   };
 
   return (
@@ -284,10 +324,10 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
         {/* Quick prompt pills */}
         <div className="flex flex-wrap items-center gap-1.5 mt-3">
           <span className="text-[11px] text-slate-400 mr-1">Quick Prompts:</span>
-          {samplePrompts.map((p, idx) => (
+          {samplePrompts.map((p) => (
             <button
-              key={idx}
-              id={`quick-prompt-btn-${idx}`}
+              key={p.label}
+              id={`quick-prompt-btn-${p.label.replace(/\s+/g, "-")}`}
               onClick={() => handleApplyPrompt(p.text)}
               className="text-xs px-2.5 py-1 rounded-lg bg-slate-800/70 hover:bg-slate-700 text-slate-300 border border-slate-700/50 transition-colors cursor-pointer"
             >
@@ -379,7 +419,7 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
                           <span className="font-mono text-xs font-semibold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/50">
                             {item.priceHSK} HSK
                           </span>
-                          {item.rwaBatchId && (
+                          {Boolean(item.rwaBatchId) && (
                             <span className="text-[9px] font-mono text-amber-300 bg-amber-950/70 border border-amber-800/40 px-1.5 py-0.2 rounded flex items-center gap-0.5">
                               <Coins className="w-2.5 h-2.5" />
                               RWA Batch #{item.rwaBatchId}
@@ -497,8 +537,9 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
               </div>
 
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Evaluated in the local client sandbox. The AI agent submits a cryptographic commitment
-                <code className="text-indigo-300 font-mono text-[10px] ml-1">keccak256(zkProof)</code> to the HSK contract.
+                Evaluated in the local client sandbox. The AI agent submits a cryptographic commitment{" "}
+                <code className="text-indigo-300 font-mono text-[10px] ml-1">keccak256(zkProof)</code>{" "}
+                to the HSK contract.
               </p>
 
               <div className="grid grid-cols-2 gap-1.5">
@@ -570,27 +611,7 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
               disabled={isProcessing || isWalletSubmitting || selectedItems.length === 0}
               className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:via-teal-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
             >
-              {isWalletSubmitting ? (
-                <>
-                  <span className="inline-block animate-spin">🦊</span>
-                  <span>Confirmando en MetaMask / Wallet...</span>
-                </>
-              ) : isProcessing ? (
-                <>
-                  <span className="inline-block animate-spin">⏳</span>
-                  <span>AI Agent Executing on HSK...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>
-                    {connectedAddress && useWalletTx
-                      ? "Pagar con MetaMask en HSK Testnet"
-                      : "Lock in Escrow & Authorize AI Agent"}
-                  </span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
+              {renderSubmitButtonContent()}
             </button>
           </div>
         </div>
