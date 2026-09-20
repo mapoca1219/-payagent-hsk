@@ -34,6 +34,7 @@ export const X402ProtocolPlayground: React.FC = () => {
   const [paymentProof, setPaymentProof] = useState<X402PaymentProof | null>(null);
   const [deliveredResponse, setDeliveredResponse] = useState<X402ResourceResponse | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [signWithWallet, setSignWithWallet] = useState(false);
 
   const handleSimulateHandshake = async () => {
     setIsExecuting(true);
@@ -45,14 +46,53 @@ export const X402ProtocolPlayground: React.FC = () => {
     setPaymentProof(null);
     setDeliveredResponse(null);
 
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 600));
 
-    // 2. Agent Session Key Signs Challenge
+    // 2. Sign Challenge (Autonomous Session Key or Live MetaMask Wallet)
     setCurrentStep("PAYMENT_SIGNING");
-    const proof = await signX402PaymentChallenge(challenge);
+    let proof: X402PaymentProof;
+
+    if (signWithWallet && typeof window !== "undefined" && (window as any).ethereum) {
+      try {
+        const ethereum = (window as any).ethereum;
+        const accounts = await ethereum.request({ method: "eth_accounts" });
+        const signer = (accounts && accounts.length > 0 ? accounts[0] : challenge.recipientVault) as `0x${string}`;
+        const challengeMessage = `HTTP 402 Payment Authorization\nResource: ${challenge.resourceName}\nAmount: ${challenge.priceHSK} ${challenge.tokenSymbol}\nNonce: ${challenge.headers["x402-challenge-nonce"]}`;
+
+        const signature = await ethereum.request({
+          method: "personal_sign",
+          params: [challengeMessage, signer],
+        });
+
+        const txHash = ("0x" + Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, "0")).join("")) as `0x${string}`;
+
+        proof = {
+          challengeNonce: challenge.headers["x402-challenge-nonce"],
+          resourceUri: challenge.resourceUri,
+          amountHSK: challenge.priceHSK,
+          payerAddress: signer,
+          signature: signature,
+          txHash: txHash,
+          blockNumber: 4892118,
+          timestamp: Date.now(),
+          clientHeaders: {
+            Authorization: `x402-Bearer proof_${Date.now().toString(36)}`,
+            "x402-payment-signature": signature,
+            "x402-payer-session-key": signer,
+            "x402-tx-hash": txHash,
+          },
+        };
+      } catch (signErr) {
+        console.warn("Wallet signature dismissed, using autonomous session key proof:", signErr);
+        proof = await signX402PaymentChallenge(challenge);
+      }
+    } else {
+      proof = await signX402PaymentChallenge(challenge);
+    }
+
     setPaymentProof(proof);
 
-    await new Promise((r) => setTimeout(r, 900));
+    await new Promise((r) => setTimeout(r, 800));
 
     // 3. Server Verifies & Responds 200 OK
     const delivered = verifyAndDeliverX402Resource(selectedEndpoint, proof);
@@ -92,7 +132,20 @@ export const X402ProtocolPlayground: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
+              <input
+                type="checkbox"
+                id="sign-with-wallet-x402"
+                checked={signWithWallet}
+                onChange={(e) => setSignWithWallet(e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-cyan-500 focus:ring-cyan-400 cursor-pointer"
+              />
+              <label htmlFor="sign-with-wallet-x402" className="cursor-pointer text-[11px] text-slate-300 font-medium">
+                Firmar con MetaMask en vivo
+              </label>
+            </div>
+
             <button
               onClick={handleReset}
               disabled={isExecuting}
@@ -106,7 +159,7 @@ export const X402ProtocolPlayground: React.FC = () => {
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-md cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isExecuting ? "animate-spin" : ""}`} />
-              <span>Simulate Machine-to-Machine Handshake</span>
+              <span>{signWithWallet ? "Ejecutar y Firmar con Wallet" : "Simulate Machine-to-Machine Handshake"}</span>
             </button>
           </div>
         </div>

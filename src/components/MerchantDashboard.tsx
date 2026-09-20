@@ -13,6 +13,8 @@ import {
   Building2,
   Lock,
   Coins,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type { Merchant, OrderRecord } from "../types.ts";
 import { HSK_EXPLORER_URL } from "../../agent/hskChain.ts";
@@ -36,6 +38,8 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
 }) => {
   const [selectedMerchantFilter, setSelectedMerchantFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ORDERS_PER_PAGE = 3;
 
   const explorerBaseUrl = HSK_EXPLORER_URL || TESTNET_EXPLORER_FALLBACK;
 
@@ -44,6 +48,10 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
     if (statusFilter !== "ALL" && o.status !== statusFilter) return false;
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const displayedOrders = filteredOrders.slice((safeCurrentPage - 1) * ORDERS_PER_PAGE, safeCurrentPage * ORDERS_PER_PAGE);
 
   const totalSettledHSK = orders
     .filter((o) => o.status === "RELEASED_ON_HSK")
@@ -101,7 +109,10 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
           <select
             id="merchant-select-filter"
             value={selectedMerchantFilter}
-            onChange={(e) => setSelectedMerchantFilter(e.target.value)}
+            onChange={(e) => {
+              setSelectedMerchantFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none"
           >
             <option value="ALL">All Merchants ({merchants.length})</option>
@@ -118,7 +129,10 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
           {["ALL", "ESCROWED", "RELEASED_ON_HSK", "REFUNDED"].map((st) => (
             <button
               key={st}
-              onClick={() => setStatusFilter(st)}
+              onClick={() => {
+                setStatusFilter(st);
+                setCurrentPage(1);
+              }}
               className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
                 statusFilter === st
                   ? "bg-indigo-600 text-white font-medium"
@@ -135,7 +149,10 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1">
           <span>Live Order Feed (Multi-Track DvP & Escrow Arbiter)</span>
-          <span>Showing {filteredOrders.length} order(s)</span>
+          <span>
+            Mostrando {displayedOrders.length} de {filteredOrders.length} orden(es)
+            {totalPages > 1 && ` • Página ${safeCurrentPage} de ${totalPages}`}
+          </span>
         </div>
 
         {filteredOrders.length === 0 ? (
@@ -148,7 +165,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {filteredOrders.map((order) => {
+            {displayedOrders.map((order) => {
               const isEscrowed = order.status === "ESCROWED";
               const isVerifying = order.status === "VERIFYING_CREDENTIAL";
               const isReleased = order.status === "RELEASED_ON_HSK";
@@ -347,6 +364,34 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {filteredOrders.length > ORDERS_PER_PAGE && (
+          <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 p-3 rounded-xl text-xs">
+            <span className="text-slate-400">
+              Página <strong className="text-white font-semibold">{safeCurrentPage}</strong> de{" "}
+              <strong className="text-white font-semibold">{totalPages}</strong> ({filteredOrders.length} órdenes en total)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage === 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Anterior</span>
+              </button>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition-colors cursor-pointer"
+              >
+                <span>Siguiente</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
