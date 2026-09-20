@@ -8,12 +8,14 @@ interface CustomerOrderViewProps {
   merchants: Merchant[];
   onOrderCreated: (order: OrderRecord) => void;
   isProcessing: boolean;
+  connectedAddress?: string | null;
 }
 
 export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
   merchants,
   onOrderCreated,
   isProcessing,
+  connectedAddress,
 }) => {
   const [promptText, setPromptText] = useState("");
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>(merchants[0]?.id || "");
@@ -131,7 +133,7 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
       merchantId: selectedMerchant.id,
       merchantName: selectedMerchant.name,
       merchantAddress: selectedMerchant.address,
-      customerAddress: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      customerAddress: (connectedAddress as `0x${string}`) || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
       items: selectedItems.map((si) => ({
         name: si.item.name,
         quantity: si.quantity,
@@ -352,6 +354,21 @@ export const CustomerOrderView: React.FC<CustomerOrderViewProps> = ({
               <span className="text-[11px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded">
                 MerchantEscrow.sol
               </span>
+            </div>
+
+            {/* Connected Buyer Notice */}
+            <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800/80">
+              <span className="text-slate-400">Buyer Identity:</span>
+              {connectedAddress ? (
+                <span className="font-mono text-cyan-300 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {`${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)} (Live Wallet)`}
+                </span>
+              ) : (
+                <span className="font-mono text-slate-400">
+                  0xf39F...2266 (Default Agent)
+                </span>
+              )}
             </div>
 
             {/* Selected Items Summary */}

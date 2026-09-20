@@ -22,6 +22,7 @@ import { ArchitectureModal } from "./components/ArchitectureModal.tsx";
 import { PhysicalAiMonitor } from "./components/PhysicalAiMonitor.tsx";
 import { InstitutionalKybModal } from "./components/InstitutionalKybModal.tsx";
 import { X402ProtocolPlayground } from "./components/X402ProtocolPlayground.tsx";
+import { WalletConnectButton } from "./components/WalletConnectButton.tsx";
 import { MOCK_MERCHANTS } from "./data/mockMerchants.ts";
 import type { OrderRecord } from "./types.ts";
 import { payAgent } from "../agent/agent.ts";
@@ -142,6 +143,7 @@ export default function App() {
   const [isArchitectureModalOpen, setIsArchitectureModalOpen] = useState(false);
   const [isKybModalOpen, setIsKybModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
 
   const [orders, setOrders] = useState<OrderRecord[]>(() => {
     const saved = localStorage.getItem("payagent_orders_v2");
@@ -336,6 +338,8 @@ export default function App() {
               <Award className="w-3.5 h-3.5 text-amber-300" />
               <span>Multi-Track Matrix</span>
             </button>
+
+            <WalletConnectButton onAddressChange={setConnectedAddress} />
           </div>
         </div>
 
@@ -431,6 +435,7 @@ export default function App() {
             merchants={merchants}
             onOrderCreated={handleOrderCreated}
             isProcessing={isProcessing}
+            connectedAddress={connectedAddress}
           />
         )}
 
